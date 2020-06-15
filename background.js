@@ -1,5 +1,6 @@
 var enabled = false
 var requestUrl = ""
+var query = ""
 var timeInterval = 30000
 var popupData = {}
 var latestAlertDate
@@ -42,6 +43,7 @@ function startExecution() {
     }
     enabled = items.enabled
     timeInterval = items.timeInterval * 1000
+    query = items.query
     if (items.apiKey !== '') {
       requestUrl = url + "v2/alerts?limit=100&sort=createdAt&" + "apiKey=" + items.apiKey + "&query=" + encodeURI(items.query)
     }
@@ -59,7 +61,11 @@ function doExecute() {
     setFailurePopupData("Alert API Poller is disabled, for enabling it use switch in <a href=\"options.html\" target=\"_blank\"> option page↗</a>.")
     return
   }
-  fetch(requestUrl)
+  fetch(requestUrl, {
+    headers: {
+      "User-Agent": "opsgenie-alert-notifier-extension"
+    }
+  })
     .then(function (response) {
       if (!response.ok) {
         response.text().then(function (responseBody) {
@@ -82,21 +88,21 @@ function sendNotificationIfNewAlerts(data) {
   console.log("notification")
   if (latestAlertDate !== undefined) {
     var newAlerts = []
-    for (let i=0; i<data.length; i++) {
-      if(latestAlertDate < data[i].createdAt)
-      newAlerts.push({
-        "title" : data[i].message,
-        "message": "Priority: " + data[i].priority
-      })
+    for (let i = 0; i < data.length; i++) {
+      if (latestAlertDate < data[i].createdAt)
+        newAlerts.push({
+          "title": data[i].message,
+          "message": "Priority: " + data[i].priority
+        })
     }
-    if(newAlerts.length == 1) {
+    if (newAlerts.length == 1) {
       chrome.notifications.create(data[0].id, {
         type: 'basic',
         iconUrl: 'images/128x128.png',
         title: newAlerts[0].title,
         message: newAlerts[0].message,
       }, function () { });
-    } else if(newAlerts.length > 0) {
+    } else if (newAlerts.length > 0) {
       chrome.notifications.create('alert-list', {
         type: 'list',
         iconUrl: 'images/128x128.png',
@@ -113,7 +119,7 @@ function sendNotificationIfNewAlerts(data) {
 
 chrome.notifications.onClicked.addListener(function (notificationId) {
   if (notificationId === 'alert-list') {
-    window.open('https://app.opsgenie.com/', '_blank')
+    window.open("https://app.opsgenie.com/alert/list?query=" + encodeURI(query), '_blank')
   } else {
     window.open('https://opsg.in/a/i/' + notificationId, '_blank')
   }
@@ -136,20 +142,18 @@ function setBadge(count) {
 
 function setSuccessPopupData(responseData) {
   console.log("success popup data filled", responseData)
-  popupData = {
-    status: "success",
-    reason: "",
-    data: responseData.slice(0, 10),
-    time: new Date().toLocaleString()
-  }
+  popupData.status = "success"
+  popupData.reason = ""
+  popupData.data = responseData
+  popupData.time = new Date().toLocaleString()
+  popupData.ogUrl = "https://app.opsgenie.com/alert/list?query=" + encodeURI(query)
 }
 
 function setFailurePopupData(message) {
   console.log("failure popup data filled", message)
-  popupData = {
-    status: "failure",
-    reason: message,
-    data: [],
-    time: new Date().toLocaleString()
-  }
+  popupData.status = "failure"
+  popupData.reason = message
+  popupData.data = []
+  popupData.time = new Date().toLocaleString()
+  popupData.ogUrl = "https://app.opsgenie.com/alert/list?query=" + encodeURI(query)
 }
