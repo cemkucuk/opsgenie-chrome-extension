@@ -6,7 +6,7 @@ var popupData = {}
 var latestAlertDate
 
 var OPSGENIE_API = "https://api.opsgenie.com/"
-var OPSGENIE_API_EU = "https://api.eu.opgenie.com"
+var OPSGENIE_API_EU = "https://api.eu.opsgenie.com/"
 
 var executeWithInterval
 
