@@ -16,7 +16,7 @@ startExecution()
 
 chrome.storage.onChanged.addListener(function (changes, namespace) {
   startExecution()
-})
+});
 
 chrome.runtime.onInstalled.addListener(details => {
   window.open("options.html", "_blank")
@@ -26,7 +26,21 @@ chrome.runtime.onInstalled.addListener(details => {
 chrome.runtime.onMessage.addListener(
   function (request, sender, sendResponse) {
     sendResponse(popupData)
-  })
+});
+
+// overwriting the user agent
+chrome.webRequest.onBeforeSendHeaders.addListener(
+  function(details) {
+    for (var i = 0; i < details.requestHeaders.length; ++i) {
+      if (details.requestHeaders[i].name === "User-Agent") {
+        details.requestHeaders[i].value = "opsgenie-alert-notifier-extension"
+        break;
+      }
+    }
+    return {requestHeaders: details.requestHeaders};
+  },
+  {urls: ["*://*.opsgenie.com/*"]},
+  ["blocking", "requestHeaders"]);
 
 function startExecution() {
   chrome.storage.sync.get({
@@ -61,16 +75,12 @@ function doExecute() {
     setFailurePopupData("Alert API Poller is disabled, for enabling it use switch in <a href=\"options.html\" target=\"_blank\"> option page↗</a>.")
     return
   }
-  fetch(requestUrl, {
-    headers: {
-      "User-Agent": "opsgenie-alert-notifier-extension"
-    }
-  })
+  fetch(requestUrl)
     .then(function (response) {
       if (!response.ok) {
         response.text().then(function (responseBody) {
           setBadge(-1)
-          setFailurePopupData(responseBody)
+          setFailurePopupData("Client failure, will retry in " + timeInterval/1000 + " seconds.<br> Reason: " + responseBody)
           executeWithInterval = setTimeout(doExecute, timeInterval)
         })
       } else {
@@ -81,11 +91,14 @@ function doExecute() {
           executeWithInterval = setTimeout(doExecute, timeInterval)
         })
       }
+    }).catch(function(error){
+      setBadge(-1)
+      setFailurePopupData("Network failure, will retry in " + timeInterval/1000 + " seconds.<br> Reason: " + error)
+      executeWithInterval = setTimeout(doExecute, timeInterval)
     })
 }
 
 function sendNotificationIfNewAlerts(data) {
-  console.log("notification")
   if (latestAlertDate !== undefined) {
     var newAlerts = []
     for (let i = 0; i < data.length; i++) {
@@ -141,7 +154,6 @@ function setBadge(count) {
 }
 
 function setSuccessPopupData(responseData) {
-  console.log("success popup data filled", responseData)
   popupData.status = "success"
   popupData.reason = ""
   popupData.data = responseData
@@ -150,7 +162,6 @@ function setSuccessPopupData(responseData) {
 }
 
 function setFailurePopupData(message) {
-  console.log("failure popup data filled", message)
   popupData.status = "failure"
   popupData.reason = message
   popupData.data = []

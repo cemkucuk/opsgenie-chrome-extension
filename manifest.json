@@ -1,6 +1,6 @@
 {
   "name": "Opsgenie Alert Notifier",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "An extension for showing latest alerts and getting notifications for new alert(s) via polling Opsgenie’s REST API.",
   "background": {
     "scripts": ["background.js"]
@@ -10,7 +10,9 @@
     "default_popup": "popup.html"
   },
   "permissions": [
-    "https://*.opsgenie.com/*",
+    "*://*.opsgenie.com/*",
+    "webRequest",
+    "webRequestBlocking",
     "storage",
     "notifications"
   ],
