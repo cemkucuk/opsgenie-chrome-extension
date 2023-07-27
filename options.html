@@ -4,67 +4,34 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <link rel="stylesheet" type="text/css" href="css/atlaskit/css-reset.css">
-    <link rel="stylesheet" type="text/css" href="css/atlaskit/bundle.css">
-    <title>Opsgenie Alert Notifier - Options</title>
-    <style>
-        #form-grid {
-            margin-top: 25px;
-        }
-    </style>
+    <title></title>
+    <link rel="stylesheet" href="css/options.css">
 </head>
-
 <body>
-    <ak-grid is="true">
-        <ak-grid-column id="form-grid" is="true" size="8">
-            <h1> <img src="images/48x48.png" width="30" height="30" alt=""> Alert Notifier Options </h1>
-            <form id="options">
-
-                <div class="ak-field-group">
-                    <label for="region">Region</label>
-                    <select id="region" class="ak-field-select">
-                        <option selected>US</option>
-                        <option>EU</option>
-                    </select>
-                </div>
-                <div class="ak-field-group">
-                    <label for="api-key">API Key</label>
-                    <input type="text" class="ak-field-search" id="api-key" required>
-                </div>
-                <div class="ak-field-group">
-                    <label for="query">Alert Query</label>
-                    <textarea type="text" class="ak-field-textarea" rows="2" id="query" placeholder="eg. acknowledged: false AND isSeen: false"></textarea>
-                </div>
-                <div class="ak-field-group">
-                    <label for="timeInterval">Time Interval(sec)</label>
-                    <select id="time-interval" class="ak-field-select">
-                        <option>5</option>
-                        <option>10</option>
-                        <option>15</option>
-                        <option>20</option>
-                        <option selected>30</option>
-                        <option>60</option>
-                        <option>120</option>
-                    </select>
-                </div>
-                <div class="ak-field-group" id="result"></div>
-                <div class="ak-field-group">
-                    <label for="poller-switch">Enable Alert API Poller</label>
-                    <div class="ak-field-toggle ak-field-toggle__size-default"><input type="checkbox"
-                            name="poller-switch" id="poller-switch" value="default-checked"><label
-                            for="poller-switch">Option</label></div>
-                    <button type="button" class="ak-button ak-button__appearance-primary" id="submit"
-                        style="float: right;">Save</button>
-                </div>
-            </form>
-        </ak-grid-column>
-    </ak-grid>
-
-    <br>
-    <script src="jquery-3.5.1.slim.min.js"
-        integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj"
-        crossorigin="anonymous"></script>
-    <script src="options.js"></script>
+<h1><img src="images/48x48.png" width="30" height="30" alt=""> <span></span></h1>
+<form id="options">
+    <label for="enabled"></label>
+    <input type="checkbox" name="enabled" id="enabled" checked>
+    <label for="region"></label>
+    <select id="region">
+        <option selected>US</option>
+        <option>EU</option>
+    </select>
+    <label for="customer-name"></label>
+    <input type="text" id="customer-name">
+    <label for="api-key"></label>
+    <input type="password" id="api-key" required>
+    <label for="ack-user"></label>
+    <input type="text" id="ack-user">
+    <label for="query"></label>
+    <textarea type="text" rows="2" id="query" placeholder="eg. acknowledged: false AND isSeen: false"></textarea>
+    <label for="time-interval"></label>
+    <input type="number" id="time-interval" min="1" max="60" value="1">
+    <label for="popup-height"></label>
+    <input type="number" id="popup-height" min="100" value="300">
+    <button type="submit" id="submit"></button>
+    <div id="form-alert"></div>
+</form>
+<script src="js/options.js"></script>
 </body>
-
 </html>
