@@ -3,40 +3,38 @@ const OPSGENIE_DOMAIN = {
     "EU": "eu.opsgenie.com",
 }
 
-chrome.runtime.onStartup.addListener(function () {
-    initExtension()
+const defaultSettings = {
+    enabled: true,
+    region: 'US',
+    customerName: '',
+    ackUser: '',
+    apiKey: '',
+    query: '',
+    timeInterval: 1
+}
 
-    return true;
-});
-
-chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'sync') {
-        initExtension()
-    }
-
-    return true;
-});
-
-chrome.alarms.onAlarm.addListener(alarm => {
-    console.log(alarm);
-
-    (async () => {
-        await doExecute();
-    })();
-
-    return true;
-});
+initExtension();
 
 chrome.runtime.onInstalled.addListener(details => {
     if (details.reason === 'install') {
         chrome.tabs.create({
             url: "options.html"
         });
-    } else {
-        chrome.storage.local.clear()
     }
-    
-    initExtension()
+
+    return initExtension();
+});
+
+chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'sync') {
+        return initExtension();
+    }
+});
+
+chrome.alarms.onAlarm.addListener(alarm => {
+    (async () => {
+        await doExecute(await chrome.storage.sync.get(defaultSettings));
+    })();
 
     return true;
 });
@@ -69,18 +67,12 @@ function initExtension() {
         setBadge(-1)
         await startExecution()
     })();
+
+    return true;
 }
 
 async function startExecution() {
-    const settings = await chrome.storage.sync.get({
-        enabled: true,
-        region: 'US',
-        customerName: '',
-        ackUser: '',
-        apiKey: '',
-        query: '',
-        timeInterval: 1
-    })
+    const settings = await chrome.storage.sync.get(defaultSettings)
 
     if (!settings.enabled) {
         setBadge(-1)
@@ -94,42 +86,36 @@ async function startExecution() {
         return
     }
 
-    await chrome.storage.session.set({settings})
-
     await chrome.alarms.clear('fetch')
     await chrome.alarms.create('fetch', {
-        periodInMinutes: parseInt(settings.timeInterval) || 1,
-        delayInMinutes: 1
+        periodInMinutes: parseInt(settings.timeInterval) || 1
     });
 
-    return doExecute()
+    return doExecute(settings)
 }
 
-async function doExecute() {
-    const data = await chrome.storage.session.get('settings')
+async function doExecute(settings) {
     let response;
 
     try {
-        response = await fetch(`https://api.${OPSGENIE_DOMAIN[data.settings.region]}/v2/alerts?limit=100&sort=createdAt&query=${encodeURI(data.settings.query)}`, {
+        response = await fetch(`https://api.${OPSGENIE_DOMAIN[settings.region]}/v2/alerts?limit=100&sort=createdAt&query=${encodeURI(settings.query)}`, {
             headers: {
-                "Authorization": `GenieKey ${data.settings.apiKey}`
+                "Authorization": `GenieKey ${settings.apiKey}`
             }
         })
     } catch (error) {
         setBadge(-1)
-        setPopupData(false, data.settings, chrome.i18n.getMessage("popupNetworkFailure", [data.settings.timeInterval, error]))
+        setPopupData(false, settings, chrome.i18n.getMessage("popupNetworkFailure", [settings.timeInterval, error]))
         return
     }
-
-    console.log(response);
 
     if (response.status !== 200) {
         setBadge(-1)
         try {
             const responseBody = await response.text()
-            setPopupData(false, data.settings, chrome.i18n.getMessage("popupClientFailure", [data.settings.timeInterval, responseBody]))
+            setPopupData(false, settings, chrome.i18n.getMessage("popupClientFailure", [settings.timeInterval, responseBody]))
         } catch (error) {
-            setPopupData(false, data.settings, chrome.i18n.getMessage("popupClientFailure", [data.settings.timeInterval, error]))
+            setPopupData(false, settings, chrome.i18n.getMessage("popupClientFailure", [settings.timeInterval, error]))
         }
 
         return
@@ -138,10 +124,10 @@ async function doExecute() {
     try {
         const responseBody = await response.json()
         setBadge(responseBody.data.length)
-        setPopupData(true, data.settings, responseBody.data)
+        setPopupData(true, settings, responseBody.data)
         //sendNotificationIfNewAlerts(responseBody.data)
     } catch (error) {
-        setPopupData(false, data.settings, chrome.i18n.getMessage("popupClientFailure", [data.settings.timeInterval, error]))
+        setPopupData(false, settings, chrome.i18n.getMessage("popupClientFailure", [settings.timeInterval, error]))
     }
 }
 

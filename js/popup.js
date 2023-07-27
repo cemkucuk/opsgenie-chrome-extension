@@ -11,7 +11,8 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
 async function renderAlerts() {
     const elemAlerts = document.querySelector("#alerts > table")
     const elemInfo = document.getElementById("info-text")
-    const {settings, popup} = await chrome.storage.session.get(['settings', 'popup'])
+    const settings = await chrome.storage.sync.get()
+    const {popup} = await chrome.storage.session.get('popup')
     elemAlerts.innerHTML = ''
 
     if (!popup) {
@@ -20,7 +21,7 @@ async function renderAlerts() {
     }
 
     if (!popup.ok) {
-        elemInfo.innerHTML = `<p style="color:#BF2600">${popup.response}</p>`
+        elemInfo.innerHTML = `<p style="color:#BF2600">${popup.data}</p>`
         return
     }
 
