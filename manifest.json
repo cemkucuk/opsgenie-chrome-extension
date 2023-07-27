@@ -39,5 +39,10 @@
     "storage",
     "alarms",
     "notifications"
-  ]
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "opsgenie.notifier@jkroepke.de"
+    }
+  }
 }
