@@ -3,18 +3,19 @@ const OPSGENIE_DOMAIN = {
     "EU": "eu.opsgenie.com",
 }
 
-setBadge(-1)
-startExecution()
+initExtension()
 
 chrome.runtime.onStartup.addListener(() => {
-    setBadge(-1)
-    startExecution()
+    initExtension()
+    return true
 })
 
 chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'sync') {
-        startExecution()
+        initExtension()
     }
+
+    return true;
 });
 
 chrome.runtime.onInstalled.addListener(details => {
@@ -27,53 +28,81 @@ chrome.runtime.onInstalled.addListener(details => {
     }
 });
 
-chrome.notifications.onClicked.addListener(function (notificationId) {
+chrome.notifications.onClicked.addListener((notificationId) => {
     if (notificationId === 'alert-list') {
-        window.open(`https://app.${OPSGENIE_DOMAIN[settings.region]}/alert/list?query=` + encodeURI(query), '_blank')
+        chrome.tabs.create({
+            url: `https://app.${OPSGENIE_DOMAIN[settings.region]}/alert/list?query=` + encodeURI(query)
+        });
     } else {
-        window.open('https://opsg.in/a/i/' + notificationId, '_blank')
+        chrome.tabs.create({
+            url: 'https://opsg.in/a/i/' + notificationId
+        });
     }
 });
 
-chrome.alarms.onAlarm.addListener(async (alarm) => {
-    switch (alarm.name) {
-        case 'fetch':
-            doExecute();
-            break
-    }
+chrome.alarms.onAlarm.addListener(alarm => {
+    (async () => {
+        console.log(alarm)
+
+        switch (alarm.name) {
+            case 'fetch':
+                await doExecute();
+                break
+        }
+    })();
+
+    return true;
 });
 
-chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
-    if (message && message.action && message.action === 'ack') {
-        const {settings} = await chrome.storage.session.get('settings');
-        const response = await fetch(`https://api.${OPSGENIE_DOMAIN[settings.settings.region]}/v2/alerts/${message.id}/acknowledge`, {
-            method: "POST",
-            headers: {
-                "Authorization": `GenieKey ${settings.settings.apiKey}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                "user": data.settings.ackUser,
-                "source": "OpsGenie Notifier",
-                "note": "Action executed via Alert API"
-            })
-        }).then(response => {
-            console.log(response)
-            if (response.status !== 200) {
-                response.text().then(sendResponse)
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    (async () => {
+        if (message && message.action && message.action === 'ack') {
+            const {settings} = await chrome.storage.session.get('settings');
+            if (settings.ackUser === '') {
+                sendResponse('ERROR: No Ack User Specified')
+                return
             }
 
-            sendResponse('OK')
-        }).catch(sendResponse)
+            try {
+                const response = await fetch(`https://api.${OPSGENIE_DOMAIN[settings.region]}/v2/alerts/${message.id}/acknowledge`, {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `GenieKey ${settings.apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        "user": settings.ackUser,
+                        "source": "OpsGenie Notifier",
+                        "note": "Action executed via Alert API"
+                    })
+                })
 
-        sendResponse("OK")
-    }
+                if (response.status !== 200) {
+                    const responseText = response.text()
+                    sendResponse(`ERROR: ${responseText}`)
+                } else {
+                    sendResponse('OK')
+                }
+            } catch (error) {
+                sendResponse(`ERROR: ${error}`)
+            }
+        }
+    })();
+
+    return true;
 });
 
-function startExecution() {
-    chrome.alarms.clear('fetch')
+function initExtension() {
+    (async () => {
+        setBadge(-1)
+        await startExecution()
+    })();
+}
 
-    chrome.storage.sync.get({
+async function startExecution() {
+    await chrome.alarms.clear('fetch')
+
+    const settings = await chrome.storage.sync.get({
         enabled: true,
         region: 'US',
         customerName: '',
@@ -81,59 +110,68 @@ function startExecution() {
         apiKey: '',
         query: '',
         timeInterval: 1
-    }).then(settings => {
-        if (!settings.enabled) {
-            setBadge(-1)
-            setPopupData(false, settings, chrome.i18n.getMessage("popupExtensionDisabled", [`<a href="options.html" target="_blank">`, "↗</a>"]))
-            return
-        }
-
-        if (settings.apiKey === "") {
-            setBadge(-1)
-            setPopupData(false, settings, chrome.i18n.getMessage("popupApiKeyEmpty", [`<a href="options.html" target="_blank">`, "↗</a>"]))
-            return
-        }
-
-        chrome.alarms.create('fetch', {
-            periodInMinutes: parseInt(settings.timeInterval) || 1,
-            delayInMinutes: 1
-        });
-
-        chrome.storage.session.set({settings}, doExecute);
     })
+
+    if (!settings.enabled) {
+        setBadge(-1)
+        setPopupData(false, settings, chrome.i18n.getMessage("popupExtensionDisabled", [`<a href="options.html" target="_blank">`, "↗</a>"]))
+        return
+    }
+
+    if (settings.apiKey === "") {
+        setBadge(-1)
+        setPopupData(false, settings, chrome.i18n.getMessage("popupApiKeyEmpty", [`<a href="options.html" target="_blank">`, "↗</a>"]))
+        return
+    }
+
+    await chrome.alarms.create('fetch', {
+        periodInMinutes: parseInt(settings.timeInterval) || 1,
+        delayInMinutes: 1
+    });
+
+    await chrome.storage.session.set({settings})
+    await doExecute()
+
+    console.log(await chrome.alarms.getAll())
 }
 
-function doExecute() {
-    chrome.storage.session.get('settings').then(data => {
-        fetch(`https://api.${OPSGENIE_DOMAIN[data.settings.region]}/v2/alerts?limit=100&sort=createdAt&query=${encodeURI(data.settings.query)}`, {
+async function doExecute() {
+    const data = await chrome.storage.session.get('settings')
+    let response;
+
+    try {
+        response = await fetch(`https://api.${OPSGENIE_DOMAIN[data.settings.region]}/v2/alerts?limit=100&sort=createdAt&query=${encodeURI(data.settings.query)}`, {
             headers: {
                 "Authorization": `GenieKey ${data.settings.apiKey}`
             }
         })
-            .then(response => {
-                if (response.status !== 200) {
-                    response.text().then(responseBody => {
-                        setBadge(-1)
-                        setPopupData(false, data.settings, chrome.i18n.getMessage("popupClientFailure", [data.settings.timeInterval, responseBody]))
-                    }).catch(error => {
-                        setPopupData(false, data.settings, chrome.i18n.getMessage("popupClientFailure", [data.settings.timeInterval, error]))
-                    })
-                    return
-                }
+    } catch (error) {
+        setBadge(-1)
+        setPopupData(false, data.settings, chrome.i18n.getMessage("popupNetworkFailure", [data.settings.timeInterval, error]))
+        return
+    }
+    console.log(response)
 
-                response.json().then(responseBody => {
-                    setBadge(responseBody.data.length)
-                    setPopupData(true, data.settings, responseBody.data)
-                }).catch(error => {
-                    setPopupData(false, data.settings, chrome.i18n.getMessage("popupClientFailure", [data.settings.timeInterval, error]))
-                })
-                //sendNotificationIfNewAlerts(responseBody.data)
-            })
-            .catch(error => {
-                setBadge(-1)
-                setPopupData(false, data.settings, chrome.i18n.getMessage("popupNetworkFailure", [data.settings.timeInterval, error]))
-            })
-    })
+    if (response.status !== 200) {
+        setBadge(-1)
+        try {
+            const responseBody = await response.text()
+            setPopupData(false, data.settings, chrome.i18n.getMessage("popupClientFailure", [data.settings.timeInterval, responseBody]))
+        } catch (error) {
+            setPopupData(false, data.settings, chrome.i18n.getMessage("popupClientFailure", [data.settings.timeInterval, error]))
+        }
+
+        return
+    }
+
+    try {
+        const responseBody = await response.json()
+        setBadge(responseBody.data.length)
+        setPopupData(true, data.settings, responseBody.data)
+        //sendNotificationIfNewAlerts(responseBody.data)
+    } catch (error) {
+        setPopupData(false, data.settings, chrome.i18n.getMessage("popupClientFailure", [data.settings.timeInterval, error]))
+    }
 }
 
 function setBadge(count) {
@@ -196,6 +234,7 @@ function sendNotificationIfNewAlerts(data) {
             });
         }
     }
+
     if (data.length > 0) {
         latestAlertDate = data[0].createdAt
     }
