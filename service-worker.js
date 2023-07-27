@@ -3,17 +3,26 @@ const OPSGENIE_DOMAIN = {
     "EU": "eu.opsgenie.com",
 }
 
-initExtension()
-
-chrome.runtime.onStartup.addListener(() => {
+chrome.runtime.onStartup.addListener(function () {
     initExtension()
-    return true
-})
+
+    return true;
+});
 
 chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'sync') {
         initExtension()
     }
+
+    return true;
+});
+
+chrome.alarms.onAlarm.addListener(alarm => {
+    console.log(alarm);
+
+    (async () => {
+        await doExecute();
+    })();
 
     return true;
 });
@@ -26,6 +35,10 @@ chrome.runtime.onInstalled.addListener(details => {
     } else {
         chrome.storage.local.clear()
     }
+    
+    initExtension()
+
+    return true;
 });
 
 chrome.notifications.onClicked.addListener((notificationId) => {
@@ -40,57 +53,16 @@ chrome.notifications.onClicked.addListener((notificationId) => {
     }
 });
 
-chrome.alarms.onAlarm.addListener(alarm => {
-    (async () => {
-        console.log(alarm)
-
-        switch (alarm.name) {
-            case 'fetch':
-                await doExecute();
-                break
-        }
-    })();
-
-    return true;
-});
-
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     (async () => {
         if (message && message.action && message.action === 'ack') {
-            const {settings} = await chrome.storage.session.get('settings');
-            if (settings.ackUser === '') {
-                sendResponse('ERROR: No Ack User Specified')
-                return
-            }
-
-            try {
-                const response = await fetch(`https://api.${OPSGENIE_DOMAIN[settings.region]}/v2/alerts/${message.id}/acknowledge`, {
-                    method: "POST",
-                    headers: {
-                        "Authorization": `GenieKey ${settings.apiKey}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        "user": settings.ackUser,
-                        "source": "OpsGenie Notifier",
-                        "note": "Action executed via Alert API"
-                    })
-                })
-
-                if (response.status !== 200) {
-                    const responseText = response.text()
-                    sendResponse(`ERROR: ${responseText}`)
-                } else {
-                    sendResponse('OK')
-                }
-            } catch (error) {
-                sendResponse(`ERROR: ${error}`)
-            }
+            await handleAck(message, sendResponse);
         }
     })();
 
     return true;
 });
+
 
 function initExtension() {
     (async () => {
@@ -100,8 +72,6 @@ function initExtension() {
 }
 
 async function startExecution() {
-    await chrome.alarms.clear('fetch')
-
     const settings = await chrome.storage.sync.get({
         enabled: true,
         region: 'US',
@@ -124,15 +94,15 @@ async function startExecution() {
         return
     }
 
+    await chrome.storage.session.set({settings})
+
+    await chrome.alarms.clear('fetch')
     await chrome.alarms.create('fetch', {
         periodInMinutes: parseInt(settings.timeInterval) || 1,
         delayInMinutes: 1
     });
 
-    await chrome.storage.session.set({settings})
-    await doExecute()
-
-    console.log(await chrome.alarms.getAll())
+    return doExecute()
 }
 
 async function doExecute() {
@@ -150,7 +120,8 @@ async function doExecute() {
         setPopupData(false, data.settings, chrome.i18n.getMessage("popupNetworkFailure", [data.settings.timeInterval, error]))
         return
     }
-    console.log(response)
+
+    console.log(response);
 
     if (response.status !== 200) {
         setBadge(-1)
@@ -237,5 +208,43 @@ function sendNotificationIfNewAlerts(data) {
 
     if (data.length > 0) {
         latestAlertDate = data[0].createdAt
+    }
+}
+
+
+async function handleAck(message, sendResponse) {
+    const {settings} = await chrome.storage.session.get('settings');
+    if (settings.ackUser === '') {
+        sendResponse('ERROR: No Ack User Specified')
+        return
+    }
+
+    try {
+        const response = await fetch(`https://api.${OPSGENIE_DOMAIN[settings.region]}/v2/alerts/${message.id}/acknowledge`, {
+            method: "POST",
+            headers: {
+                "Authorization": `GenieKey ${settings.apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                "user": settings.ackUser,
+                "source": "OpsGenie Notifier",
+                "note": "Action executed via Alert API"
+            })
+        })
+
+        if (response.status !== 200) {
+            try {
+                const responseText = await response.json()
+                sendResponse(`ERROR: ${responseText.message}`)
+            } catch (e) {
+                const responseText = await response.text()
+                sendResponse(`ERROR: ${responseText}`)
+            }
+        } else {
+            sendResponse('OK')
+        }
+    } catch (error) {
+        sendResponse(`ERROR: ${error}`)
     }
 }

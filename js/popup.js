@@ -9,37 +9,34 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
 })()
 
 async function renderAlerts() {
-    const elemAlerts = document.getElementById("alerts")
+    const elemAlerts = document.querySelector("#alerts > table")
     const elemInfo = document.getElementById("info-text")
     const {settings, popup} = await chrome.storage.session.get(['settings', 'popup'])
-
-    console.log(settings, popup)
+    elemAlerts.innerHTML = ''
 
     if (!popup) {
         elemInfo.innerHTML = `<p style="color:#BF2600">Loading ...</p>`
-        elemAlerts.innerHTML = ''
         return
     }
 
     if (!popup.ok) {
         elemInfo.innerHTML = `<p style="color:#BF2600">${popup.response}</p>`
-        elemAlerts.innerHTML = ''
         return
     }
 
     elemInfo.innerHTML = `<i>Last updated @ ${popup.time}</i><a style="float: right;" href="${popup.ogUrl}" target="_blank"> see all alerts↗</a>`
     if (popup.data.length === 0) {
         elemInfo.innerHTML += "<p style=\"text-align:center\"> There are no alerts.  🎉</p>"
-        elemAlerts.innerHTML = ''
         return
     }
 
+
     popup.data.forEach(function (alert, i) {
-        let alertRow = `<div class="alert" id="${alert.id}"><span class="alert-action">`
+        let alertRow = `<tr class="alert" id="${alert.id}"><td class="alert-action">`
         if (settings.ackUser) {
             alertRow += `<a href="#" id="${alert.id}-ack">[ACK]</a>`
         }
-        alertRow += `</span><span class="alert-count">x${alert.count}</span><span class="alert-priority ${alert.priority}-bg">${alert.priority}</span><span class="alert-message">${alert.message}</span></div>`
+        alertRow += `</td><td class="alert-count">x${alert.count}</td><td><span class="alert-priority ${alert.priority}-bg">${alert.priority}</span></td><td class="alert-message">${alert.message}</td></tr>`
 
         elemAlerts.insertAdjacentHTML('beforeend', alertRow)
         if (settings.ackUser) {
@@ -50,7 +47,6 @@ async function renderAlerts() {
                     action: 'ack',
                     id: alert.id
                 }, (error) => {
-                    console.log(error)
                     if (error) {
                         window.alert(error)
                     }
