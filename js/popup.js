@@ -31,40 +31,49 @@ async function renderAlerts() {
         return
     }
 
-
-    popup.data.forEach(function (alert, i) {
+    popup.data.forEach((alert, i) => {
         let alertRow = `<tr class="alert" id="${alert.id}"><td class="alert-action">`
-        if (settings.ackUser) {
-            alertRow += `<a href="#" id="${alert.id}-ack">[ACK]</a>`
+        if (settings.username) {
+            if (alert.acknowledged) {
+                alertRow += `<a href="#" class="handleAlert" data-action="close" data-id="${alert.id}">[CLOSE]</a>`
+            } else {
+                alertRow += `<a href="#" class="handleAlert" data-action="acknowledge" data-id="${alert.id}">[ACK]</a>`
+            }
         }
         alertRow += `</td><td class="alert-count">x${alert.count}</td><td><span class="alert-priority ${alert.priority}-bg">${alert.priority}</span></td><td class="alert-message">${alert.message}</td></tr>`
 
         elemAlerts.insertAdjacentHTML('beforeend', alertRow)
-        if (settings.ackUser) {
-            document.getElementById(`${alert.id}-ack`).addEventListener('click', (e) => {
-                e.preventDefault()
+    })
+
+    if (settings.username) {
+        [...(document.getElementsByClassName('handleAlert'))].forEach(d => {
+            d.addEventListener('click', (e) => {
+                e.preventDefault();
 
                 chrome.runtime.sendMessage({
-                    action: 'ack',
-                    id: alert.id
+                    action: e.target.dataset.action,
+                    id: e.target.dataset.id,
                 }, (error) => {
                     if (error) {
                         window.alert(error)
                     }
                 })
-            })
-        }
-        document.getElementById(alert.id).addEventListener('click', (e) => {
+            });
+        })
+    }
+
+
+    [...(document.getElementsByClassName('alert-message'))].forEach(d => {
+        d.addEventListener('click', (e) => {
             e.preventDefault()
-            return
 
             let url = "https://"
             if (settings.customerName !== '') {
                 url += `${settings.customerName}.`
             }
-            url += `app.opsgenie.com/alert/detail/${alert.id}/details`
+            url += `app.opsgenie.com/alert/detail/${e.target.parentElement.id}/details`
 
             window.open(url, '_blank')
-        })
+        });
     })
 }

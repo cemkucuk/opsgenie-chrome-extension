@@ -14,6 +14,10 @@
       "title": "Ops.Genie Customer",
       "type": "string"
     },
+    "username": {
+      "title": "Ops.Genie Username",
+      "type": "string"
+    },
     "apiKey": {
       "title": "Ops.Genie API KEY",
       "type": "string"

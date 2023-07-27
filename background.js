@@ -7,7 +7,7 @@ const defaultSettings = {
     enabled: true,
     region: 'US',
     customerName: '',
-    ackUser: '',
+    username: '',
     apiKey: '',
     query: '',
     timeInterval: 1
@@ -53,8 +53,8 @@ chrome.notifications.onClicked.addListener((notificationId) => {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     (async () => {
-        if (message && message.action && message.action === 'ack') {
-            await handleAck(message, sendResponse);
+        if (message && message.action) {
+            await handleAlertAction(message, sendResponse);
         }
     })();
 
@@ -198,22 +198,17 @@ function sendNotificationIfNewAlerts(data) {
 }
 
 
-async function handleAck(message, sendResponse) {
-    const {settings} = await chrome.storage.session.get('settings');
-    if (settings.ackUser === '') {
-        sendResponse('ERROR: No Ack User Specified')
-        return
-    }
-
+async function handleAlertAction(message, sendResponse) {
     try {
-        const response = await fetch(`https://api.${OPSGENIE_DOMAIN[settings.region]}/v2/alerts/${message.id}/acknowledge`, {
+        const settings = await chrome.storage.sync.get(defaultSettings)
+        const response = await fetch(`https://api.${OPSGENIE_DOMAIN[settings.region]}/v2/alerts/${message.id}/${message.action}`, {
             method: "POST",
             headers: {
                 "Authorization": `GenieKey ${settings.apiKey}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                "user": settings.ackUser,
+                "user": settings.username,
                 "source": "OpsGenie Notifier",
                 "note": "Action executed via Alert API"
             })

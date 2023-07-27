@@ -61,8 +61,8 @@
   "optionsCustomerName": {
     "message": "Customer"
   },
-  "optionsAckUser": {
-    "message": "Username for ACKs"
+  "optionsUsername": {
+    "message": "Username for Alert actions"
   },
   "optionsApiKey": {
     "message": "API Key"
