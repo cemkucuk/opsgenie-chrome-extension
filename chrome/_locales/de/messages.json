@@ -59,13 +59,13 @@
     "message": "Region"
   },
   "optionsCustomerName": {
-    "message": "Customer"
+    "message": "Customer (Optional)"
   },
   "optionsUsername": {
     "message": "Username for Alert actions"
   },
   "optionsApiKey": {
-    "message": "API Key"
+    "message": "API Key $1(Help)$2"
   },
   "optionsAlertQuery": {
     "message": "Alert Query"
@@ -78,5 +78,8 @@
   },
   "optionsButtonSave": {
     "message": "Speichern"
+  },
+  "optionsSaved": {
+    "message": "Saved successfully, badge will be refreshed now!"
   }
 }

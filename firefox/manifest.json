@@ -12,7 +12,9 @@
     "128": "/images/128x128.png"
   },
   "background": {
-    "scripts": ["background.js"]
+    "scripts": [
+      "background.js"
+    ]
   },
   "action": {
     "default_title": "__MSG_extName__",
@@ -32,7 +34,7 @@
   },
   "options_page": "options.html",
   "host_permissions": [
-    "https://*.opsgenie.com/*"
+    "https://*.opsgenie.com/"
   ],
   "permissions": [
     "webRequest",
@@ -43,7 +45,7 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "opsgenie-notifier@jkroepke.de",
-      "strict_min_version": "42.0"
+      "strict_min_version": "116.0"
     }
   }
 }

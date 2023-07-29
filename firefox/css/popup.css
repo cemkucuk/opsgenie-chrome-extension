@@ -1,8 +1,5 @@
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-}
-
-body {
     text-overflow: ellipsis;
     white-space: nowrap;
     max-width: 600px;
@@ -29,9 +26,10 @@ a#info-text {
 
 #alert-wrapper {
     margin-top: 5px;
-    overflow: scroll;
     max-width: 600px;
     max-height: 300px;
+
+    overflow: auto;
 }
 
 .alert {
