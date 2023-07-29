@@ -3,6 +3,14 @@ const OPSGENIE_DOMAIN = {
     "EU": "eu.opsgenie.com",
 }
 
+const notificationPriorityMap = {
+    "P1": 2,
+    "P2": 1,
+    "P3": 0,
+    "P4": 0,
+    "P5": 0,
+}
+
 const defaultSettings = {
     enabled: true,
     region: 'US',
@@ -40,15 +48,28 @@ chrome.alarms.onAlarm.addListener(alarm => {
 });
 
 chrome.notifications.onClicked.addListener((notificationId) => {
-    if (notificationId === 'alert-list') {
-        chrome.tabs.create({
-            url: `https://app.${OPSGENIE_DOMAIN[settings.region]}/alert/list?query=` + encodeURI(query)
-        });
-    } else {
-        chrome.tabs.create({
-            url: 'https://opsg.in/a/i/' + notificationId
-        });
-    }
+    (async () => {
+        if (notificationId === 'opsgenie-alert-list') {
+            const settings = await chrome.storage.sync.get(defaultSettings)
+
+            let ogUrl = 'https://'
+            if (settings.customerName !== '') {
+                ogUrl += `${settings.customerName}.`
+            }
+
+            ogUrl += `app.${OPSGENIE_DOMAIN[settings.region]}/alert/list?query=${encodeURI(settings.query)}`
+
+            chrome.tabs.create({
+                url: ogUrl
+            });
+        } else {
+            chrome.tabs.create({
+                url: 'https://opsg.in/a/i/' + notificationId
+            });
+        }
+    })();
+
+    return true;
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -125,7 +146,8 @@ async function doExecute(settings) {
         const responseBody = await response.json()
         setBadge(responseBody.data.length)
         setPopupData(true, settings, responseBody.data)
-        //sendNotificationIfNewAlerts(responseBody.data)
+
+        sendNotificationIfNewAlerts(responseBody.data)
     } catch (error) {
         setPopupData(false, settings, chrome.i18n.getMessage("popupClientFailure", [settings.timeInterval, error]))
     }
@@ -163,37 +185,56 @@ function setPopupData(ok, settings, data) {
 }
 
 function sendNotificationIfNewAlerts(data) {
-    if (latestAlertDate !== undefined) {
-        var newAlerts = []
-        for (let i = 0; i < data.length; i++) {
-            if (latestAlertDate < data[i].createdAt)
-                newAlerts.push({
-                    "title": data[i].message,
-                    "message": "Priority: " + data[i].priority
-                })
-        }
-        if (newAlerts.length == 1) {
-            chrome.notifications.create(data[0].id, {
-                type: 'basic',
-                iconUrl: 'images/128x128.png',
-                title: newAlerts[0].title,
-                message: newAlerts[0].message,
-            }, function () {
-            });
-        } else if (newAlerts.length > 0) {
-            chrome.notifications.create('alert-list', {
-                type: 'list',
-                iconUrl: 'images/128x128.png',
-                title: newAlerts.length.toString() + " new alert(s)!",
-                message: "",
-                items: newAlerts
-            }, function () {
-            });
-        }
+    if (data.length === 0) {
+        return
+    }
+
+    let {latestAlertDate} = chrome.storage.local.get('latestAlertDate')
+
+    if (latestAlertDate === undefined) {
+        latestAlertDate = data.reduce((r, b) => Math.max(r, b.createdAt), Number.NEGATIVE_INFINITY);
+    }
+
+    const newAlerts = data.filter(alert => latestAlertDate < alert.createdAt)
+        .map(alert => {
+            return alert + {
+                id: alert.id,
+                title: alert.message,
+                message: "Priority: " + alert.priority,
+                createdAt: alert.createdAt,
+                priority: alert.priority
+            }
+        })
+
+    if (newAlerts.length === 1) {
+        chrome.notifications.create(newAlerts[0].id, {
+            type: 'image',
+            title: newAlerts[0].message,
+            message: "Priority: " + newAlerts[0].priority,
+            iconUrl: 'images/128x128.png',
+            priority: notificationPriorityMap[newAlerts[0].priority] ?? 0,
+            silent: notificationPriorityMap[newAlerts[0].priority] === 0,
+            requireInteraction: notificationPriorityMap[newAlerts[0].priority] === 2,
+            eventTime: newAlerts[0].createdAt,
+        });
+    } else if (newAlerts.length > 0) {
+        chrome.notifications.create('opsgenie-alert-list', {
+            type: 'list',
+            iconUrl: 'images/128x128.png',
+            title: newAlerts.length.toString() + " new alerts!",
+            message: "",
+            items: newAlerts.map(alert => {
+                return {
+                    title: alert.message,
+                    message: "Priority: " + alert.priority,
+                }
+            })
+        });
     }
 
     if (data.length > 0) {
-        latestAlertDate = data[0].createdAt
+        latestAlertDate = data.reduce((r, b) => Math.max(r, b.createdAt), Number.NEGATIVE_INFINITY);
+        chrome.storage.local.set({latestAlertDate: data[0].createdAt})
     }
 }
 
