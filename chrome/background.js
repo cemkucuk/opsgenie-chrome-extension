@@ -73,9 +73,16 @@ chrome.notifications.onClicked.addListener((notificationId) => {
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (!message || !message.action) return;
+
     (async () => {
-        if (message && message.action) {
-            await handleAlertAction(message, sendResponse);
+        switch (message.action) {
+            case 'reload':
+                await doExecute(await chrome.storage.sync.get(defaultSettings));
+                break
+            default:
+                await handleAlertAction(message, sendResponse);
+                break
         }
     })();
 

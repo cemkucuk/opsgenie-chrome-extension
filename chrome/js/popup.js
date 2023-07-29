@@ -4,13 +4,27 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
     }
 });
 
+document.addEventListener('DOMContentLoaded', function () {
+    document.getElementById('reload').addEventListener('click', (e) => {
+        e.preventDefault()
+
+        chrome.runtime.sendMessage({
+            action: 'reload'
+        }, (error) => {
+            if (error) {
+                window.alert(error)
+            }
+        })
+    });
+});
+
 (async () => {
     await renderAlerts()
 })()
 
 async function renderAlerts() {
-    const elemAlerts = document.querySelector("#alerts > table")
-    const elemInfo = document.getElementById("info-text")
+    const elemAlerts = document.getElementById("alerts")
+    const elemInfo = document.getElementById("result")
     const settings = await chrome.storage.sync.get()
     const {popup} = await chrome.storage.session.get('popup')
     elemAlerts.innerHTML = ''

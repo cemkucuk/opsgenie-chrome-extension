@@ -1,7 +1,7 @@
 body {
     text-overflow: ellipsis;
     white-space: nowrap;
-    width: 600px;
+    max-width: 600px;
     max-height: 300px;
     margin: 0;
     padding: 0;
@@ -23,7 +23,7 @@ a#info-text {
     color: #00A0C6;
 }
 
-#alerts {
+#alert-wrapper {
     margin-top: 5px;
     overflow: scroll;
     max-width: 600px;
