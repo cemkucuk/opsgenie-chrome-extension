@@ -1,0 +1,38 @@
+{
+  "type": "object",
+  "properties": {
+    "enabled": {
+      "title": "Enable Extensions",
+      "type": "boolean"
+    },
+    "region": {
+      "title": "Ops.Genie Datacenter",
+      "type": "string",
+      "enum": ["US", "EU"]
+    },
+    "customerName": {
+      "title": "Ops.Genie Customer",
+      "type": "string"
+    },
+    "username": {
+      "title": "Ops.Genie Username",
+      "type": "string"
+    },
+    "apiKey": {
+      "title": "Ops.Genie API KEY",
+      "type": "string"
+    },
+    "searchQuery": {
+      "title": "Ops.Genie Search Query",
+      "type": "string"
+    },
+    "timeInterval": {
+      "title": "Fetch Interval",
+      "type": "number"
+    },
+    "popupHeight": {
+      "title": "Popup Height",
+      "type": "number"
+    }
+  }
+}
